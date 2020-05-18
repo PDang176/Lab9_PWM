@@ -6,67 +6,62 @@
  *
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
+ *
+ *	Video Link: https://drive.google.com/open?id=18l9gvuHjOLMCiot0uBdT6tXnL7rBc2Uz
  */
 #include <avr/io.h>
-#include "timer.h"
 #ifdef _SIMULATE_
 #include "simAVRHeader.h"
 #endif
 
-const double notes[8] = {261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25};
-const unsigned char melody[20] = {0, 1, 4, 3, 2, 2, 5, 7, 3, 2, 2, 2, 3, 6, 6, 6, 1, 0, 0, 2};
-unsigned char i;
-unsigned char j;
-
-enum States{Start, Wait_Press, Play_Melody, Wait_Release}state;
+enum States{Start, Silent, C, D, E}state;
 
 void Tick(){
 	//Transitions
 	switch(state){
 		case Start:
-			state = Wait_Press;
+			state = Silent;
 			break;
-		case Wait_Press:
-			if(~PINA & 0x01){
-				state = Play_Melody;
-				j = 0;
-				i = 0;
+		case Silent:
+		case C:
+		case D:
+		case E:
+			if((~PINA & 0x01) && (PINA & 0x02) && (PINA & 0x04)){
+				state = C;
 			}
+			else if((PINA & 0x01) && (~PINA & 0x02) && (PINA & 0x04)){
+                                state = D;
+                        }
+			else if((PINA & 0x01) && (PINA & 0x02) && (~PINA & 0x04)){
+                                state = E;
+                        }
 			else{
-				state = Wait_Press;
+				state = Silent;
 			}
-			break;
-		case Play_Melody:
-			if(j <= 20){
-				state = Play_Melody;
-				i++;
-			}
-			else{
-				state = (~PINA & 0x01) ? Wait_Release : Wait_Press;
-			}
-			break;
-		case Wait_Release:
-			state = (~PINA & 0x01) ? Wait_Release : Wait_Press;
 			break;
 		default:
 			state = Start;
-			break;
+			break;	
 	}
+
 	//State actions
 	switch(state){
 		case Start:
 			break;
-		case Wait_Press:
+		case Silent:
 			set_PWM(0);
 			break;
-		case Play_Melody:
-			j++;
-			set_PWM(notes[melody[i]]);
-			break;	
-		case Wait_Release:
-			set_PWM(0);
+		case C:
+			set_PWM(261.63);
+			break;
+		case D:
+			set_PWM(293.66);
+			break;
+		case E:
+			set_PWM(329.63);
 			break;
 		default:
+			set_PWM(0);
 			break;
 	}
 }
@@ -103,15 +98,9 @@ int main(void) {
 	DDRB = 0x40; PORTB = 0xBF;
 
 	PWM_on();
-	TimerSet(250);
-	TimerOn();
-
-	state = Start;
     /* Insert your solution below */
     while (1) {
 	Tick();
-	while(!TimerFlag){}
-	TimerFlag = 0;
     }
     return 1;
 }
